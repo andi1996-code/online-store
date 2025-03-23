@@ -15,7 +15,7 @@
 </head>
 <body>
 
-    <header class="relative">
+    {{-- <header class="relative">
         @php
             $store = \App\Models\Store::first();
         @endphp
@@ -26,7 +26,7 @@
                 <p class="text-gray-700 text-lg">No Banner Available</p>
             </div>
         @endif
-    </header>
+    </header> --}}
 
     <main>
         {{ $slot }}

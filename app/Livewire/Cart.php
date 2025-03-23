@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Livewire;
 
 use App\Models\Cart as CartModel;
@@ -20,8 +19,8 @@ class Cart extends Component
 
     public function loadCart()
     {
-        $this->cartItems = CartModel::with('product')->get();
-        $this->totalPrice = collect($this->cartItems)->sum('total_price');
+        $this->cartItems = CartModel::with('product')->get(); // Keep as a collection
+        $this->totalPrice = collect($this->cartItems)->sum('total_price'); // Ensure it's a collection
     }
 
     public function addToCart($productId)
@@ -53,10 +52,10 @@ class Cart extends Component
             $cartItem->total_price = $cartItem->quantity * $cartItem->product->price;
             $cartItem->save();
         } else {
-            $cartItem->delete(); // Delete the cart item if quantity is 1
+            $cartItem->delete();
         }
 
-        $this->loadCart(); // Refresh the cart items and total price
+        $this->loadCart();
     }
 
     public function incrementQuantity($cartItemId)
@@ -71,10 +70,9 @@ class Cart extends Component
 
     public function checkout()
     {
-        if (empty($this->cartItems)) {
-            return;
-        }
+        if (empty($this->cartItems)) return;
 
+        // Simpan order
         $order = Order::create([
             'name_customer' => 'Anonymous',
             'address' => 'Unknown',
@@ -82,42 +80,31 @@ class Cart extends Component
             'status' => 'pending',
         ]);
 
-        foreach ($this->cartItems as $item) {
-            Order_item::create([
-                'order_id' => $order->id,
-                'product_id' => $item['product_id'],
-                'quantity' => $item['quantity'],
-                'price' => $item['total_price'],
-            ]);
+        // Simpan detail order sebelum menghapus cart
+        $cartDetails = collect($this->cartItems)->map(function ($item) {
+            return $item['product']['name'] . ' (x' . $item['quantity'] . ')';
+        })->join(', ');
+
+        $totalPriceFormatted = number_format($this->totalPrice, 0, ',', '.');
+
+        $store = \App\Models\Store::first();
+        if ($store && $store->phone) {
+            $whatsappUrl = "https://wa.me/{$store->phone}?text=" . urlencode(
+                "Halo, saya ingin memesan: {$cartDetails}. Total: Rp {$totalPriceFormatted}"
+            );
+
+            // dispatch event to frontend to open WhatsApp in a new tab
+            $this->dispatch('openWhatsApp', $whatsappUrl);
         }
 
         // Hapus semua item dari cart
         CartModel::query()->delete();
-
-        // Reset cart di Livewire
         $this->cartItems = [];
         $this->totalPrice = 0;
 
-        // Ambil nomor WhatsApp toko
-        $store = \App\Models\Store::first();
-        if ($store && $store->phone) {
-            $cartDetails = collect($this->cartItems)->map(function ($item) {
-                return $item['product']['name'] . ' (x' . $item['quantity'] . ')';
-            })->join(', ');
-
-            $whatsappUrl = "https://wa.me/{$store->phone}?text=" . urlencode(
-                "Halo, saya ingin memesan: {$cartDetails}. Total: Rp " . number_format($this->totalPrice, 0, ',', '.')
-            );
-
-            // Kirim event ke JavaScript agar bisa buka WhatsApp di tab baru
-            $this->dispatch('openWhatsApp', $whatsappUrl);
-        }
-
-        // Kirim event untuk mengosongkan keranjang di frontend
+        // dispatch event to clear the cart on the frontend
         $this->dispatch('cartCleared');
     }
-
-
 
     public function render()
     {
