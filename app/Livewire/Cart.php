@@ -11,6 +11,9 @@ class Cart extends Component
 {
     public $cartItems = [];
     public $totalPrice = 0;
+    public $showCheckoutPopup = false; // Controls the visibility of the popup
+    public $name;
+    public $address;
 
     public function mount()
     {
@@ -70,40 +73,50 @@ class Cart extends Component
 
     public function checkout()
     {
-        if (empty($this->cartItems)) return;
+        $this->showCheckoutPopup = true; // Show the popup
+    }
+
+    public function confirmCheckout()
+    {
+        $this->validate([
+            'name' => 'required|string|max:255',
+            'address' => 'required|string|max:500',
+        ]);
 
         // Simpan order
         $order = Order::create([
-            'name_customer' => 'Anonymous',
-            'address' => 'Unknown',
+            'name_customer' => $this->name,
+            'address' => $this->address,
             'total_price' => $this->totalPrice,
             'status' => 'pending',
         ]);
-
-        // Simpan detail order sebelum menghapus cart
-        $cartDetails = collect($this->cartItems)->map(function ($item) {
-            return $item['product']['name'] . ' (x' . $item['quantity'] . ')';
-        })->join(', ');
 
         $totalPriceFormatted = number_format($this->totalPrice, 0, ',', '.');
 
         $store = \App\Models\Store::first();
         if ($store && $store->phone) {
+            $orderTemplate = ($store->wa_order_template ?? "Halo, saya ingin memesan:") . "\n\n";
             $whatsappUrl = "https://wa.me/{$store->phone}?text=" . urlencode(
-                "Halo, saya ingin memesan: {$cartDetails}. Total: Rp {$totalPriceFormatted}"
+                $orderTemplate .
+                collect($this->cartItems)->map(function ($item) {
+                    return "-> " . $item['product']['name'] . " (x" . $item['quantity'] . ")";
+                })->join("\n") .
+                "\n\nTotal: Rp *{$totalPriceFormatted}*" .
+                "\n\nNama: {$this->name}" .
+                "\nAlamat: {$this->address}"
             );
 
-            // dispatch event to frontend to open WhatsApp in a new tab
             $this->dispatch('openWhatsApp', $whatsappUrl);
         }
 
-        // Hapus semua item dari cart
         CartModel::query()->delete();
         $this->cartItems = [];
         $this->totalPrice = 0;
 
-        // dispatch event to clear the cart on the frontend
         $this->dispatch('cartCleared');
+
+        $this->showCheckoutPopup = false;
+        session()->flash('success', 'Checkout berhasil!');
     }
 
     public function render()

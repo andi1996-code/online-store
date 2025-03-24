@@ -14,6 +14,9 @@ class Store extends Model
         'name_store',
         'address',
         'phone',
+        'wa_order_template',
         'image',
+        'description',
+        'profile_picture'
     ];
 }

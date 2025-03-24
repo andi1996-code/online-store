@@ -10,12 +10,7 @@ class ProductList extends Component
 {
     use WithPagination;
 
-    public $products;
-
-    public function mount()
-    {
-        $this->products = Product::all();
-    }
+    public $searchTerm = ''; // Bind search input
 
     public function addToCart($productId)
     {
@@ -39,9 +34,15 @@ class ProductList extends Component
 
     public function render()
     {
+        $products = Product::query()
+            ->when($this->searchTerm, function ($query) {
+                $query->where('name', 'like', '%' . $this->searchTerm . '%'); // Filter by search term
+            })
+            ->get();
+
         return view('livewire.product-list', [
-            'products' => $this->products,
-        ])->with('layout', 'components.layouts.app');
+            'products' => $products,
+        ]);
     }
 }
 

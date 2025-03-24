@@ -24,18 +24,37 @@ class StoreResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name_store')
+                    ->label('Name Store')
                     ->required()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('address')
                     ->required()
                     ->maxLength(255),
+                Forms\Components\TextInput::make('description')
+                    ->label('Description')
+                    ->required()
+                    ->maxLength(255),
                 Forms\Components\TextInput::make('phone')
+                    ->label('Phone')
                     ->tel()
                     ->required()
                     ->maxLength(255),
-                Forms\Components\FileUpload::make('image')
-                    ->image()
-                    ->required(),
+                Forms\Components\Textarea::make('wa_order_template')
+                    ->label('WhatsApp Order Template')
+                    ->required()
+                    ->maxLength(255),
+                Forms\Components\Fieldset::make('Images')
+                    ->schema([
+                        Forms\Components\FileUpload::make('profile_picture')
+                            ->label('Profile Picture')
+                            ->image()
+                            ->required(),
+                        Forms\Components\FileUpload::make('image')
+                            ->label('Banner Image')
+                            ->image()
+                            ->required(),
+                    ])
+                    ->columns(2),
             ]);
     }
 
@@ -45,11 +64,20 @@ class StoreResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name_store')
                     ->searchable(),
+                //description column
+                Tables\Columns\TextColumn::make('description')
+                    ->searchable(),
+                //profile_picture column
                 Tables\Columns\TextColumn::make('address')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('phone')
                     ->searchable(),
-                Tables\Columns\ImageColumn::make('image'),
+                Tables\Columns\TextColumn::make('wa_order_template')
+                    ->searchable(),
+                Tables\Columns\ImageColumn::make('profile_picture')
+                    ->label('Profile Picture'),
+                Tables\Columns\ImageColumn::make('image')
+                    ->label('Banner Image'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
