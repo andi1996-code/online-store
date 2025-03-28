@@ -5,8 +5,9 @@
                 <i class="fas fa-shopping-cart"></i>
                 <span class="absolute top-[-8px] -right-2 bg-red-500 text-white text-xs rounded-full px-2 py-1"
                     wire:poll>
-                    {{ \App\Models\Cart::sum('quantity') }}
+                    {{ \App\Models\Cart::where('session_id', session()->getId())->sum('quantity') }}
                 </span>
+
             </a>
         </div>
         <div class="relative">

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Livewire;
 
 use Livewire\Component;
@@ -14,15 +15,21 @@ class ProductList extends Component
 
     public function addToCart($productId)
     {
+        $sessionId = session()->getId(); // Ambil session_id
         $product = Product::findOrFail($productId);
 
-        $cartItem = Cart::where('product_id', $productId)->first();
+        // Cari produk di keranjang berdasarkan session_id dan product_id
+        $cartItem = Cart::where('session_id', $sessionId)
+            ->where('product_id', $productId)
+            ->first();
+
         if ($cartItem) {
             $cartItem->quantity += 1;
             $cartItem->total_price = $cartItem->quantity * $product->price;
             $cartItem->save();
         } else {
             Cart::create([
+                'session_id' => $sessionId, // Tambahkan session_id
                 'product_id' => $productId,
                 'quantity' => 1,
                 'total_price' => $product->price,
@@ -31,6 +38,7 @@ class ProductList extends Component
 
         $this->dispatch('cartUpdated');
     }
+
 
     public function render()
     {
@@ -45,4 +53,3 @@ class ProductList extends Component
         ]);
     }
 }
-

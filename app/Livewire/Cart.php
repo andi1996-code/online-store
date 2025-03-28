@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Livewire;
 
 use App\Models\Cart as CartModel;
@@ -6,6 +7,7 @@ use App\Models\Product;
 use Livewire\Component;
 use App\Models\Order;
 use App\Models\Order_item;
+use App\Models\Store;
 
 class Cart extends Component
 {
@@ -14,6 +16,7 @@ class Cart extends Component
     public $showCheckoutPopup = false; // Controls the visibility of the popup
     public $name;
     public $address;
+    public $cartItemId;
 
     public function mount()
     {
@@ -22,21 +25,32 @@ class Cart extends Component
 
     public function loadCart()
     {
-        $this->cartItems = CartModel::with('product')->get(); // Keep as a collection
-        $this->totalPrice = collect($this->cartItems)->sum('total_price'); // Ensure it's a collection
+        $session_id = session()->getId(); // Ambil session ID dari Laravel
+
+        $this->cartItems = CartModel::with('product')
+            ->where('session_id', $session_id)
+            ->get();
+
+        $this->totalPrice = collect($this->cartItems)->sum('total_price');
     }
+
 
     public function addToCart($productId)
     {
+        $session_id = session()->getId();
         $product = Product::findOrFail($productId);
 
-        $cartItem = CartModel::where('product_id', $productId)->first();
+        $cartItem = CartModel::where('session_id', $session_id)
+            ->where('product_id', $productId)
+            ->first();
+
         if ($cartItem) {
             $cartItem->quantity += 1;
             $cartItem->total_price = $cartItem->quantity * $product->price;
             $cartItem->save();
         } else {
             CartModel::create([
+                'session_id' => $session_id,
                 'product_id' => $productId,
                 'quantity' => 1,
                 'total_price' => $product->price,
@@ -46,20 +60,27 @@ class Cart extends Component
         $this->loadCart();
     }
 
+
     public function removeFromCart($cartItemId)
     {
-        $cartItem = CartModel::findOrFail($cartItemId);
+        $session_id = session()->getId();
+        $cartItem = CartModel::where('session_id', $session_id)
+            ->where('id', $cartItemId)
+            ->first();
 
-        if ($cartItem->quantity > 1) {
-            $cartItem->quantity -= 1;
-            $cartItem->total_price = $cartItem->quantity * $cartItem->product->price;
-            $cartItem->save();
-        } else {
-            $cartItem->delete();
+        if ($cartItem) {
+            if ($cartItem->quantity > 1) {
+                $cartItem->quantity -= 1;
+                $cartItem->total_price = $cartItem->quantity * $cartItem->product->price;
+                $cartItem->save();
+            } else {
+                $cartItem->delete();
+            }
         }
 
         $this->loadCart();
     }
+
 
     public function incrementQuantity($cartItemId)
     {
@@ -83,6 +104,8 @@ class Cart extends Component
             'address' => 'required|string|max:500',
         ]);
 
+        $session_id = session()->getId();
+
         // Simpan order
         $order = Order::create([
             'name_customer' => $this->name,
@@ -91,25 +114,9 @@ class Cart extends Component
             'status' => 'pending',
         ]);
 
-        $totalPriceFormatted = number_format($this->totalPrice, 0, ',', '.');
+        // Hapus hanya cart milik session yang checkout
+        CartModel::where('session_id', $session_id)->delete();
 
-        $store = \App\Models\Store::first();
-        if ($store && $store->phone) {
-            $orderTemplate = ($store->wa_order_template ?? "Halo, saya ingin memesan:") . "\n\n";
-            $whatsappUrl = "https://wa.me/{$store->phone}?text=" . urlencode(
-                $orderTemplate .
-                collect($this->cartItems)->map(function ($item) {
-                    return "-> " . $item['product']['name'] . " (x" . $item['quantity'] . ")";
-                })->join("\n") .
-                "\n\nTotal: Rp *{$totalPriceFormatted}*" .
-                "\n\nNama: {$this->name}" .
-                "\nAlamat: {$this->address}"
-            );
-
-            $this->dispatch('openWhatsApp', $whatsappUrl);
-        }
-
-        CartModel::query()->delete();
         $this->cartItems = [];
         $this->totalPrice = 0;
 
@@ -118,6 +125,7 @@ class Cart extends Component
         $this->showCheckoutPopup = false;
         session()->flash('success', 'Checkout berhasil!');
     }
+
 
     public function render()
     {
