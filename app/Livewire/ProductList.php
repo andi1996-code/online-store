@@ -13,23 +13,25 @@ class ProductList extends Component
 
     public $searchTerm = ''; // Bind search input
 
+    /**
+     * Menambahkan produk ke dalam keranjang.
+     */
     public function addToCart($productId)
     {
-        $sessionId = session()->getId(); // Ambil session_id
+        $sessionId = session()->getId(); // Ambil session ID
         $product = Product::findOrFail($productId);
 
-        // Cari produk di keranjang berdasarkan session_id dan product_id
+        // Cek apakah produk sudah ada di keranjang
         $cartItem = Cart::where('session_id', $sessionId)
             ->where('product_id', $productId)
             ->first();
 
         if ($cartItem) {
-            $cartItem->quantity += 1;
-            $cartItem->total_price = $cartItem->quantity * $product->price;
-            $cartItem->save();
+            $cartItem->increment('quantity'); // Tambah jumlah produk
+            $cartItem->update(['total_price' => $cartItem->quantity * $product->price]);
         } else {
             Cart::create([
-                'session_id' => $sessionId, // Tambahkan session_id
+                'session_id' => $sessionId,
                 'product_id' => $productId,
                 'quantity' => 1,
                 'total_price' => $product->price,
@@ -39,17 +41,19 @@ class ProductList extends Component
         $this->dispatch('cartUpdated');
     }
 
-
+    /**
+     * Render komponen Livewire dan ambil daftar produk.
+     */
     public function render()
     {
         $products = Product::query()
-            ->when($this->searchTerm, function ($query) {
-                $query->where('name', 'like', '%' . $this->searchTerm . '%'); // Filter by search term
-            })
+            ->when($this->searchTerm, fn($query) =>
+                $query->where('name', 'like', "%{$this->searchTerm}%")
+            )
             ->get();
 
-        return view('livewire.product-list', [
-            'products' => $products,
-        ]);
+        return view('livewire.product-list', compact('products'));
     }
+
+    
 }

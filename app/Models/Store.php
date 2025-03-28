@@ -14,7 +14,7 @@ class Store extends Model
         'name_store',
         'address',
         'phone',
-        'wa_order_template',
+        'wa_order_template', // Custom WhatsApp message template
         'image',
         'description',
         'profile_picture'

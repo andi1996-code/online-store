@@ -6,8 +6,6 @@ use App\Models\Cart as CartModel;
 use App\Models\Product;
 use Livewire\Component;
 use App\Models\Order;
-use App\Models\Order_item;
-use App\Models\Store;
 
 class Cart extends Component
 {
@@ -114,13 +112,25 @@ class Cart extends Component
             'status' => 'pending',
         ]);
 
+
+        $storeTemplate = \App\Models\Store::first()?->wa_order_template;
+        // Generate WhatsApp URL
+        $storePhone = \App\Models\Store::first()?->phone;
+        if ($storePhone) {
+            $message = urlencode(($storeTemplate ?? "Halo, saya ingin melakukan checkout.") . "\n\nProduk:\n" . implode("\n", collect($this->cartItems)->map(function ($item) {
+                return "=> {$item->product->name} - {$item->quantity} pcs - Rp " . number_format($item->total_price, 0, ',', '.');
+            })->toArray()) . "\n\nNama: {$this->name}\nAlamat: {$this->address}\nTotal: Rp " . number_format($this->totalPrice, 0, ',', '.'));
+            $whatsappUrl = "https://wa.me/{$storePhone}?text={$message}";
+
+            // Emit event to open WhatsApp
+            $this->dispatch('openWhatsApp', $whatsappUrl);
+        }
+
         // Hapus hanya cart milik session yang checkout
         CartModel::where('session_id', $session_id)->delete();
 
         $this->cartItems = [];
         $this->totalPrice = 0;
-
-        $this->dispatch('cartCleared');
 
         $this->showCheckoutPopup = false;
         session()->flash('success', 'Checkout berhasil!');

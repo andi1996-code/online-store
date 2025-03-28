@@ -101,7 +101,7 @@
     document.addEventListener("DOMContentLoaded", function() {
         Livewire.on('openWhatsApp', url => {
             console.log("🚀 Redirecting to:", url);
-            window.open(url, '_blank');
+            window.open(url, '_blank'); // Open WhatsApp in a new tab
         });
 
         Livewire.on('cartCleared', () => {
